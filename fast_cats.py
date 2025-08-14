@@ -8,7 +8,7 @@ import requests
 from sys import exit, path
 from tqdm import tqdm
 
-
+import fileutils
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -157,9 +157,8 @@ def main(args):
     
     users = []
     try: # if it's a file, read it
-        with open(netid_input) as in_file:
-            users = in_file.read().split()
-    except: # if it isn't assume a netid
+        users = fileutils.read_whitespace_file(netid_input)
+    except: # if it isn't, assume a netid
         users = [netid_input]
 
     
