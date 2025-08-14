@@ -24,7 +24,8 @@ class Fast_cats_session:
     add_member_url = "https://groups.richmond.edu/members/add"
     del_member_url = "https://groups.richmond.edu/members/delete"
 
-    def __init__(self, netid, password):
+    def __init__(self, credentials):
+        netid, password = credentials
         self.session = requests.Session()
         self.groups = {}
         self.members = {}
@@ -161,9 +162,7 @@ def main(args):
     except: # if it isn't, assume a netid
         users = [netid_input]
 
-    
-    netid, password = get_credentials()
-    s = Fast_cats_session(netid,password)
+    s = Fast_cats_session(get_credentials())
 
     group_gid = s.get_group_gid(group)
     for netid in tqdm(users):
