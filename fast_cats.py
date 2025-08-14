@@ -63,23 +63,23 @@ class Fast_cats_session:
         # get groups cache
         self.get_groups()
 
-    def __del__(self):
+    def __del__(self) -> int:
         if self.session:
             self.session.close()
+        return 0
 
-    def get_groups(self):
+    def get_groups(self) -> list:
         # get (group id, group name) list
         logger.debug("found groups:")
         groups_response = self.session.post(self.get_groups_url, headers=self.headers)
         groups = re.findall(r"<tr id=\"(\d+)\".+\n.+\"group-name\">(.+)<", groups_response.text)
         for group in groups:
-            gid = group[0]
-            gname = group[1]
+            gid, gname = group
             self.groups[gid] = gname
             logger.debug(f"\t{gname}: {gid}")
         return self.groups
 
-    def get_group_gid(self,group_name):
+    def get_group_gid(self,group_name: str) -> str:
         logger.debug(f"trying to find gid for group {group_name}")
         for gid in self.groups:
             if self.groups[gid].lower() == group_name.lower():
@@ -87,7 +87,7 @@ class Fast_cats_session:
                 return gid
         raise Exception(f"User does not have access to a group named '{group_name}'")
 
-    def get_users_in_group(self, gid):
+    def get_users_in_group(self, gid: str) -> list:
         # get every user (first, last, department, type, netid) in group, build cache
         logger.debug(f"getting users in group {gid}...")
         members_result = self.session.post(self.members_url+"/"+gid, headers=self.headers)
@@ -97,7 +97,7 @@ class Fast_cats_session:
         logger.debug(f"found {len(members)} users in group {gid}")
         return members
 
-    def add_user_to_group(self, gid, user_netid):
+    def add_user_to_group(self, gid: str, user_netid: str) -> int:
         # add user to group
 
         logger.debug(f"adding user {user_netid} to group {gid}...")
@@ -115,7 +115,7 @@ class Fast_cats_session:
         logger.debug(f"\tuser {user_netid} added to group {gid}")
         return 0
 
-    def remove_user_from_group(self, gid, user_netid):
+    def remove_user_from_group(self, gid: str, user_netid: str) -> int:
         # remove user from group
 
         logger.debug(f"removing user {user_netid} from group {gid}...")
@@ -133,7 +133,7 @@ class Fast_cats_session:
         logger.debug(f"user {user_netid} removed from group {gid}")
         return 0
 
-    def is_in_group(self, gid, user_netid):
+    def is_in_group(self, gid: str, user_netid: str) -> bool:
         # check if user is in group
 
         logger.debug(f"\tchecking if user {user_netid} is in group {gid}...")
