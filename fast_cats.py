@@ -2,13 +2,20 @@ import argparse
 import getpass
 import keyring
 import logging
+import os
 import re
 import requests
-from sys import exit
+from sys import exit, path
 from tqdm import tqdm
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename='log_fast_cats.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+path.append(f'{__location__}/.cats')
+from cryptogra_fy import get_credentials
+
 
 class Fast_cats_session:
     login_url = "https://groups.richmond.edu/login"
@@ -156,25 +163,8 @@ def main(args):
         users = [netid_input]
 
     
-
-
-    DEBUGGING = True
-    if DEBUGGING: # remember your credentials
-        input_netid = keyring.get_password("DEBUG","USER")
-        if not input_netid:
-            input_netid = input("netid: ")
-            keyring.set_password("DEBUG","USER",input_netid)
-        input_password = keyring.get_password("DEBUG","PASSWORD")
-        if not input_password:
-            input_password = getpass.getpass("password: ")
-            keyring.set_password("DEBUG","PASSWORD",input_password)
-    else: # clear cache if it exists, get credentials
-        keyring.set_password("DEBUG","USER","")
-        keyring.set_password("DEBUG","PASSWORD","")
-        input_netid = input("netid: ")
-        input_password = getpass.getpass("password: ")
-    
-    s = Fast_cats_session(input_netid,input_password)
+    netid, password = get_credentials()
+    s = Fast_cats_session(netid,password)
 
     group_gid = s.get_group_gid(group)
     for netid in tqdm(users):
@@ -189,15 +179,18 @@ def main(args):
         
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename=f'{__location__}/log_fast_cats.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+
     parser = argparse.ArgumentParser(prog="fastcats", 
         description="""
     Create, read, and remove 
     accounts on CATS.
     What CATS does, FastCATS does better!
                         -----
-             (\___//)  -----
-            (= *.* =)    -----
-                        ----
+             (\___//)  -----    ...
+            (= *.* =)    -----  .   .
+                        ----      ..
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -207,6 +200,8 @@ if __name__ == "__main__":
         help="Input file name with netids, or the one netid to be added.")
     parser.add_argument('-r', '--remove', action='store_true',
         help="Remove the provided netids from the group.")
+    parser.add_argument('-z', '--zap', action='store_true',
+        help="Zap the previous log file out of existence!")
 
     parser.add_argument('--do-it', action='store_true', 
         help="""
@@ -216,6 +211,12 @@ if __name__ == "__main__":
         """)
     
     args = parser.parse_args()
+
+    if args.zap:
+        try:
+            os.remove(f'{__location__}/log_fast_cats.log')
+        except:
+            pass
 
     if not args.group:
         print("At least one group must be named for this program to run.")
