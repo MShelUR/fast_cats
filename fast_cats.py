@@ -9,6 +9,7 @@ from sys import exit, path
 from tqdm import tqdm
 
 import fileutils
+from urlogger import URLogger
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -165,20 +166,22 @@ def main(args):
     s = Fast_cats_session(get_credentials())
 
     group_gid = s.get_group_gid(group)
-    for netid in tqdm(users):
-        if remove:
-            logger.info(f"adding {netid} to group {group} (gid {group_gid})")
+    if remove:
+        for netid in tqdm(users):
             if do_it: 
                 s.remove_user_from_group(group_gid,netid)
-        else:
-            logger.info(f"adding {netid} to group {group} (gid {group_gid})")
+            logger.info(f"removed {netid} from group {group} (gid {group_gid})")
+    else:
+        for netid in tqdm(users):
             if do_it: 
                 s.add_user_to_group(group_gid,netid)
+            logger.info(f"added {netid} to group {group} (gid {group_gid})")
         
 
 if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(filename=f'{__location__}/log_fast_cats.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+    logger = URLogger(level=logging.INFO, logfile= "logs/fast_cats.log", formatter = logging.Formatter('%(message)s'))
+    #logger = logging.getLogger(__name__)
+    #logging.basicConfig(filename=f'{__location__}/log_fast_cats.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     parser = argparse.ArgumentParser(prog="fastcats", 
         description="""
