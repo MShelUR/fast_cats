@@ -30,6 +30,7 @@ class Fast_cats_session:
         self.session = requests.Session()
         self.groups = {}
         self.members = {}
+        self.user_affiliations = {}
         # get session from going to page
         logger.debug("obtaining session")
         login_page = self.session.get(self.login_url)
@@ -93,6 +94,10 @@ class Fast_cats_session:
         logger.debug(f"getting users in group {gid}...")
         members_result = self.session.post(self.members_url+"/"+gid, headers=self.headers)
         members = [re.findall(r"td>(.*)<",member) for member in re.findall(r"<tr id=\".+\">\n(.+\n.+\n.+\n.+\n.+)\n.+<td class=", members_result.text)]
+        for u_first, u_last, u_affiliation, u_status, u_netid in members:
+            # status is student, faculty, alumni, etc.
+            # affiliation is for things like student employees and department; this is potentially blank.
+            self.user_affiliations[u_netid] = (u_status,u_affiliation)
         # build local cache to verify existence before adding/removing users later
         self.members[gid] = [member[4] for member in members] # member[4] is netid
         logger.debug(f"found {len(members)} users in group {gid}")
@@ -165,6 +170,7 @@ def main(args):
 
     s = Fast_cats_session(get_credentials())
 
+    # add people
     group_gid = s.get_group_gid(group)
     if remove:
         for netid in tqdm(users):
@@ -172,10 +178,33 @@ def main(args):
                 s.remove_user_from_group(group_gid,netid)
             logger.info(f"removed {netid} from group {group} (gid {group_gid})")
     else:
+        users = [v for v in users] # convert generator to list
         for netid in tqdm(users):
             if do_it: 
                 s.add_user_to_group(group_gid,netid)
             logger.info(f"added {netid} to group {group} (gid {group_gid})")
+
+        # check for adding non students to lists
+        
+        # first get who was ALREADY in the list before additions
+        old_affiliations = s.user_affiliations
+
+        # update affiliations list by getting the group again
+        logger.debug("checking statuses of added users")
+        s.get_users_in_group(group_gid)
+        for netid in users:
+            status, affiliation = s.user_affiliations[netid]
+            # if they were already present before running this script, don't remove them.
+            if old_affiliations.get(netid):
+                continue
+
+            # if they were added from this script, check if their status is valid
+            if status != "student":
+                logger.warning(f"user {netid} has status {status}, removing")
+                s.remove_user_from_group(group_gid,netid)
+                logger.info(f"\tremoved {netid} from group {group} (gid {group_gid})")
+            else:
+                logger.debug(f"\tuser {netid} is a student.")
         
 
 if __name__ == "__main__":
