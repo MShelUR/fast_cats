@@ -173,13 +173,13 @@ def main(args):
     # add people
     group_gid = s.get_group_gid(group)
     if remove:
-        for netid in tqdm(users):
+        for netid in tqdm(users, ascii=True, desc="removing users"):
             if do_it: 
                 s.remove_user_from_group(group_gid,netid)
             logger.info(f"removed {netid} from group {group} (gid {group_gid})")
     else:
         users = [v for v in users] # convert generator to list
-        for netid in tqdm(users):
+        for netid in tqdm(users, ascii=True, desc="adding users"):
             if do_it: 
                 s.add_user_to_group(group_gid,netid)
             logger.info(f"added {netid} to group {group} (gid {group_gid})")
