@@ -24,6 +24,7 @@ class Fast_cats_session:
     members_url = "https://groups.richmond.edu/members"
     add_member_url = "https://groups.richmond.edu/members/add"
     del_member_url = "https://groups.richmond.edu/members/delete"
+    search_user_url = "https://groups.richmond.edu/members/search/"
 
     def __init__(self, credentials):
         netid, password = credentials
@@ -121,6 +122,34 @@ class Fast_cats_session:
         logger.debug(f"\tuser {user_netid} added to group {gid}")
         return 0
 
+    def get_netid_from_user_name(self, user_last, user_first):
+        # search for user netid from last and first name
+            # if multiple people with same name, raise error
+
+        user_search_payload = {"lname": user_last}
+
+        people_list_response = self.session.post(self.search_user_url,data=user_search_payload, headers=self.headers)
+        if people_list_response.status_code != 200:
+            logger.error(f"Could not search for user: '{user_last}, {user_first}'")
+            raise Exception(f"Could not search for user: '{user_last}, {user_first}'")
+        
+        people_list_str = people_list_response.text
+        # response comes as ["l1, f1 (net1, dep1)","l2, f2 (net2, dep2)"]
+        people_list_trimmed = people_list_str[2:-2] # removes leading [" and trailing "]
+        people_list = people_list_trimmed.split("\",\"") # splits users
+
+        matched_netid = None
+        for person in people_list:
+            found_last, found_first, found_netid, department = re.findall(r"(.*), (.*) \((.*), (.*)\)", person)[0]
+            if found_last == user_last and found_first == user_first:
+                if matched_netid:
+                    logger.error(f"Found multiple people with the name '{user_first}, {user_last}'")
+                    raise Exception(f"Found multiple people with the name '{user_first}, {user_last}'")
+                matched_netid = found_netid
+
+        return found_netid
+        
+
     def remove_user_from_group(self, gid: str, user_netid: str) -> int:
         # remove user from group
 
@@ -153,7 +182,18 @@ class Fast_cats_session:
         logger.debug(f"\tUser is not in group")
         return False
         
+def parse_netid_input(session, netid_input):
+    users = []
 
+    with open(netid_input,"r") as user_file:
+        for line in user_file:
+            if "," in line: # name, fetch netid
+                last, first = re.sub(r"\s+","", line).split(",")
+                users.append(session.get_netid_from_user_name(last,first))
+            else: # just one student
+                users.append(line)
+
+    return users
 
 def main(args):
 
@@ -162,16 +202,11 @@ def main(args):
     do_it = args.do_it
     remove = args.remove
     
-    users = []
-    try: # if it's a file, read it
-        users = fileutils.read_whitespace_file(netid_input)
-    except: # if it isn't, assume a netid
-        users = [netid_input]
-
     s = Fast_cats_session(get_credentials())
-
-    # add people
     group_gid = s.get_group_gid(group)
+
+    users = parse_netid_input(s,netid_input)
+
     if remove:
         for netid in tqdm(users, ascii=True, desc="removing users"):
             if do_it: 
