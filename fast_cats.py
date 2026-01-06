@@ -7,6 +7,7 @@ import re
 import requests
 from sys import exit, path
 from tqdm import tqdm
+from warnings import warn as warning
 
 import fileutils
 from urlogger import URLogger
@@ -134,20 +135,29 @@ class Fast_cats_session:
             raise Exception(f"Could not search for user: '{user_last}, {user_first}'")
         
         people_list_str = people_list_response.text
+
         # response comes as ["l1, f1 (net1, dep1)","l2, f2 (net2, dep2)"]
         people_list_trimmed = people_list_str[2:-2] # removes leading [" and trailing "]
         people_list = people_list_trimmed.split("\",\"") # splits users
 
         matched_netid = None
         for person in people_list:
-            found_last, found_first, found_netid, department = re.findall(r"(.*), (.*) \((.*), (.*)\)", person)[0]
+            if person == '':
+                continue
+            found_last, found_first, netid_and_department = re.findall(r"(.*), (.*) \((.*)\)", person)[0]
             if found_last == user_last and found_first == user_first:
                 if matched_netid:
                     logger.error(f"Found multiple people with the name '{user_first}, {user_last}'")
                     raise Exception(f"Found multiple people with the name '{user_first}, {user_last}'")
-                matched_netid = found_netid
+                matched_netid = netid_and_department.split(", ")[0]
 
-        return found_netid
+        if not matched_netid:
+            logger.warning(f"Could not find user: '{user_last}, {user_first}'")
+            print(f"Could not find user: '{user_last}, {user_first}'")
+
+        logger.debug(f"found netid {matched_netid} for user '{user_last}, {user_first}'")
+
+        return matched_netid
         
 
     def remove_user_from_group(self, gid: str, user_netid: str) -> int:
@@ -186,10 +196,14 @@ def parse_netid_input(session, netid_input):
     users = []
 
     with open(netid_input,"r") as user_file:
-        for line in user_file:
+        for line in user_file.read().split("\n"):
+            if len(line) == 0:
+                continue # blank line
             if "," in line: # name, fetch netid
                 last, first = re.sub(r"\s+","", line).split(",")
-                users.append(session.get_netid_from_user_name(last,first))
+                found_netid = session.get_netid_from_user_name(last,first)
+                if found_netid:
+                    users.append(found_netid)
             else: # just one student
                 users.append(line)
 
@@ -228,7 +242,10 @@ def main(args):
         logger.debug("checking statuses of added users")
         s.get_users_in_group(group_gid)
         for netid in users:
-            status, affiliation = s.user_affiliations[netid]
+            try:
+                status, affiliation = s.user_affiliations[netid]
+            except:
+                continue # user has no affiliation, no need to check
             # if they were already present before running this script, don't remove them.
             if old_affiliations.get(netid):
                 continue
