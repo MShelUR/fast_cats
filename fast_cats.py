@@ -145,7 +145,7 @@ class Fast_cats_session:
             if person == '':
                 continue
             found_last, found_first, netid_and_department = re.findall(r"(.*), (.*) \((.*)\)", person)[0]
-            if found_last == user_last and found_first == user_first:
+            if found_last.lower() == user_last.lower() and found_first.lower() == user_first.lower():
                 if matched_netid:
                     logger.error(f"Found multiple people with the name '{user_first}, {user_last}'")
                     raise Exception(f"Found multiple people with the name '{user_first}, {user_last}'")
@@ -195,17 +195,26 @@ class Fast_cats_session:
 def parse_netid_input(session, netid_input):
     users = []
 
-    with open(netid_input,"r") as user_file:
-        for line in user_file.read().split("\n"):
-            if len(line) == 0:
-                continue # blank line
-            if "," in line: # name, fetch netid
-                last, first = re.sub(r"\s+","", line).split(",")
-                found_netid = session.get_netid_from_user_name(last,first)
-                if found_netid:
-                    users.append(found_netid)
-            else: # just one student
-                users.append(line)
+    try: # input file
+        with open(netid_input,"r") as user_file:
+            for line in user_file.read().split("\n"):
+                if len(line) == 0:
+                    continue # blank line
+                if "," in line: # name, fetch netid
+                    last, first = re.sub(r"\s+","", line).split(",")
+                    found_netid = session.get_netid_from_user_name(last,first)
+                    if found_netid:
+                        users.append(found_netid)
+                else: # just a netid
+                    users.append(line)
+    except: # one input
+        if "," in netid_input: # name, fetch netid
+            last, first = re.sub(r"\s+","", netid_input).split(",")
+            found_netid = session.get_netid_from_user_name(last,first)
+            if found_netid:
+                users = [found_netid]
+        else: # just a netid
+            users = [found_netid]
 
     return users
 
